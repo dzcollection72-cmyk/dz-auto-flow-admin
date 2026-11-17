@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DZ Auto Flow — Admin</title>
+<link rel="icon" href="logo.svg">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ============ sign in ============ -->
+<section id="loginView" class="login" hidden>
+  <div class="login-card">
+    <img src="logo.svg" alt="" class="logo-lg">
+    <h1>DZ Auto <em>Flow</em> <span>Admin</span></h1>
+    <p class="muted" id="loginSub">Sign in with your admin account.</p>
+    <form id="loginForm" novalidate>
+      <label>Email<input id="lgEmail" type="email" autocomplete="email" placeholder="you@gmail.com"></label>
+      <label>Password<input id="lgPass" type="password" autocomplete="current-password" placeholder="Your password"></label>
+      <label id="lgPass2Wrap" hidden>Confirm password<input id="lgPass2" type="password" autocomplete="new-password" placeholder="Type it again"></label>
+      <label id="lgCodeWrap" hidden>Admin setup code<input id="lgCode" autocomplete="off" placeholder="DZ-ADMIN-XXXX-XXXX-XXXX"></label>
+      <button class="btn primary wide" id="lgBtn" type="submit">Sign in</button>
+    </form>
+    <p class="err" id="lgErr"></p>
+    <p class="small muted"><a href="#" id="lgToggle">First time? Create your admin account</a></p>
+  </div>
+</section>
+
+<!-- ============ app ============ -->
+<div id="appView" hidden>
+  <header class="top">
+    <div class="brand"><img src="logo.svg" alt=""><b>DZ Auto <em>Flow</em></b><span class="tag">Admin</span></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="users" class="on">Users</button>
+      <button data-tab="requests">Pro requests <b id="reqBadge" hidden>0</b></button>
+      <button data-tab="feedback">Feedback</button>
+    </nav>
+    <div class="me"><span id="meEmail"></span><button class="btn sm" id="refreshBtn" title="Refresh">↻</button><button class="btn sm" id="logoutBtn">Sign out</button></div>
+  </header>
+
+  <main class="wrap">
+    <section class="stats" id="stats"></section>
+
+    <!-- users -->
+    <section class="panel" id="tab-users">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search email…">
+        <div class="chips" id="filter">
+          <button data-f="all" class="on">All</button><button data-f="free">Free</button><button data-f="pro">Pro</button><button data-f="blocked">Blocked</button>
+        </div>
+        <button class="btn sm" id="csvBtn">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>User</th><th>Plan</th><th>Status</th><th class="num">Prompts</th><th class="num">Batches</th><th>Joined</th><th>Last seen</th><th></th></tr></thead>
+          <tbody id="usersBody"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="small muted">Passwords are stored encrypted and can't be shown to anyone. Use <b>Reset password</b> to set a new one.</p>
+    </section>
+
+    <!-- pro requests -->
+    <section class="panel" id="tab-requests" hidden>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr><th>User</th><th>Plan</th><th>Message</th><th>Requested</th><th>Status</th><th></th></tr></thead>
+          <tbody id="reqBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- feedback -->
+    <section class="panel" id="tab-feedback" hidden>
+      <div id="fbList" class="fb-list"><div class="empty">Loading…</div></div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ modal ============ -->
+<div class="modal-bg" id="modal" hidden>
+  <div class="modal">
+    <h3 id="mTitle"></h3>
+    <div id="mBody"></div>
+    <p class="err" id="mErr"></p>
+    <div class="modal-actions"><button class="btn" id="mCancel">Cancel</button><button class="btn primary" id="mOk">OK</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
