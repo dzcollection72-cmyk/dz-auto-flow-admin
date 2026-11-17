@@ -268,10 +268,39 @@
       : '<div class="empty">No feedback yet</div>';
   }
 
+  /* ---------------- settings (support contact) ---------------- */
+  const waLink = (n, m) => `https://wa.me/${n}?text=${encodeURIComponent(m || '')}`;
+  function showWaTest() {
+    const n = $('setWa').value.replace(/\D/g, '');
+    $('setTest').hidden = !n; if (n) $('setTest').href = waLink(n, $('setMsg').value);
+  }
+  async function loadSettings() {
+    const rows = await json(await fetch(`${BASE}/rest/v1/app_settings?select=key,value`, { headers: hdr(await token()) }));
+    const m = Object.fromEntries(rows.map(r => [r.key, r.value || '']));
+    $('setWa').value = m.support_whatsapp || ''; $('setMsg').value = m.support_message || ''; $('setMail').value = m.support_email || '';
+    showWaTest();
+  }
+  $('setWa').addEventListener('input', showWaTest); $('setMsg').addEventListener('input', showWaTest);
+  $('setForm').onsubmit = async e => {
+    e.preventDefault();
+    const wa = $('setWa').value.replace(/\D/g, ''), mail = $('setMail').value.trim();
+    if (wa && (wa.length < 8 || wa.length > 15)) return toast('WhatsApp number: country code + number, 8–15 digits.');
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail)) return toast('Enter a valid email or leave it empty.');
+    $('setSave').disabled = true;
+    try {
+      await rpc('admin_set_setting', { p_key: 'support_whatsapp', p_value: wa });
+      await rpc('admin_set_setting', { p_key: 'support_message', p_value: $('setMsg').value.trim() });
+      await rpc('admin_set_setting', { p_key: 'support_email', p_value: mail });
+      $('setWa').value = wa; showWaTest(); toast('Saved — users see it next time they open Help');
+    } catch (x) { toast(x.message); }
+    finally { $('setSave').disabled = false; }
+  };
+
   /* ---------------- tabs + boot ---------------- */
   document.querySelectorAll('#tabs button').forEach(b => (b.onclick = () => {
     document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-    ['users', 'requests', 'feedback'].forEach(t => ($('tab-' + t).hidden = t !== b.dataset.tab));
+    ['users', 'requests', 'feedback', 'settings'].forEach(t => ($('tab-' + t).hidden = t !== b.dataset.tab));
+    if (b.dataset.tab === 'settings') loadSettings().catch(x => toast(x.message));
   }));
   $('refreshBtn').onclick = () => loadAll().then(() => toast('Updated'));
 
