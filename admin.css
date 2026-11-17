@@ -89,3 +89,10 @@ label{display:block;font-size:12px;color:var(--muted)}label input,label select{m
 .set-form h3{font-size:15px;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
 .set-form h3 small{font-weight:400;font-size:12px}
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+/* show / hide password eye */
+.pw-wrap{position:relative;display:block;margin-top:5px}
+label .pw-wrap input{margin-top:0;padding-right:44px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:32px;border:0;background:none;color:var(--muted);cursor:pointer;display:grid;place-items:center;border-radius:7px}
+.pw-eye:hover{color:var(--text)}
+.pw-eye svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

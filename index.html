@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://nhddapvzdaibzcvoylbn.supabase.co; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
 <title>DZ Auto Flow — Admin</title>
 <link rel="icon" href="logo.svg">
 <link rel="stylesheet" href="admin.css">
@@ -84,6 +86,9 @@
         <label>WhatsApp number<input id="setWa" inputmode="tel" placeholder="923001234567 — country code, no + or spaces"></label>
         <label>First message<input id="setMsg" maxlength="200" placeholder="Hi! I need help with DZ Auto Flow."></label>
         <label>Support email (optional)<input id="setMail" type="email" placeholder="support@example.com"></label>
+        <h3>Sign-up email code (OTP)</h3>
+        <label>Email codes<select id="setOtp"><option value="off">Off — accounts are created without a code</option><option value="on">On — users get a 6-digit code by email</option></select></label>
+        <p class="small muted">Turn this On only after email sending works (Brevo SMTP saved in Supabase) and "Confirm email" is ON in Supabase → Authentication → Sign In / Providers → Email.</p>
         <div class="set-row"><span class="small muted" id="setInfo">Users get changes the next time they open Help — no extension update needed.</span><button class="btn primary" id="setSave" type="submit">Save</button></div>
         <a class="small" id="setTest" href="#" target="_blank" rel="noopener" hidden>Test the WhatsApp link</a>
       </form>

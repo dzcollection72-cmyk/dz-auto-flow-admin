@@ -1,6 +1,29 @@
 /* DZ Auto Flow — admin panel. Plain JS + Supabase REST (no libraries). */
 'use strict';
 (() => {
+  // Never run inside someone else's frame (stops click-jacking tricks)
+  if (window.top !== window.self) { document.documentElement.innerHTML = ''; return; }
+  // Session lives only in this browser tab: closing the tab signs you out
+  const store = {
+    getItem: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    setItem: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+    removeItem: k => { try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
+  try { localStorage.removeItem('dzaf.admin.session'); } catch (e) { /* old versions kept it here */ }
+  // Eye button inside every password box: show / hide the password
+  const EYE = '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  document.querySelectorAll('input[type="password"]').forEach(inp => {
+    const wrap = document.createElement('span'); wrap.className = 'pw-wrap';
+    inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-eye';
+    const set = shown => { inp.type = shown ? 'text' : 'password'; b.innerHTML = shown ? EYE_OFF : EYE; b.title = shown ? 'Hide password' : 'Show password'; b.setAttribute('aria-label', b.title); };
+    set(false);
+    b.onclick = e => { e.preventDefault(); set(inp.type === 'password'); inp.focus(); };
+    wrap.appendChild(b);
+    if (inp.form) inp.form.addEventListener('submit', () => set(false));
+  });
+
   const CFG = window.DZ_ADMIN_CONFIG;
   const BASE = CFG.supabaseUrl.replace(/\/+$/, '');
   const KEY = 'dzaf.admin.session';
@@ -50,7 +73,7 @@
   }
   function setSession(r) {
     session = { access_token: r.access_token, refresh_token: r.refresh_token, expires_at: Date.now() + (r.expires_in || 3600) * 1000, email: (r.user && r.user.email) || (session && session.email) };
-    localStorage.setItem(KEY, JSON.stringify(session));
+    store.setItem(KEY, JSON.stringify(session));
   }
   async function rpc(fn, args = {}) {
     const res = await fetch(`${BASE}/rest/v1/rpc/${fn}`, { method: 'POST', headers: hdr(await token()), body: JSON.stringify(args) });
@@ -80,6 +103,7 @@
     if (creating && pass !== $('lgPass2').value) return ($('lgErr').textContent = 'Passwords do not match.');
     const code = $('lgCode').value.trim().toUpperCase();
     if (creating && !code) return ($('lgErr').textContent = 'Enter the Admin setup code.');
+    if (Date.now() < lockedUntil) return ($('lgErr').textContent = `Too many wrong tries. Wait ${Math.ceil((lockedUntil - Date.now()) / 1000)} seconds.`);
     $('lgBtn').disabled = true; $('lgErr').textContent = '';
     try {
       if (creating) {
@@ -91,22 +115,37 @@
       setSession(r);
       if (creating) {
         const ok = await rpc('claim_admin', { p_code: code });
-        if (ok !== true) { session = null; localStorage.removeItem(KEY); throw new Error('That Admin setup code is wrong or already used.'); }
+        if (ok !== true) { session = null; store.removeItem(KEY); throw new Error('That Admin setup code is wrong or already used.'); }
       }
       await enter();
     } catch (x) {
+      if (++failedTries >= 5) { lockedUntil = Date.now() + 60000 * Math.min(failedTries - 4, 15); }
       $('lgErr').textContent = /invalid login/i.test(x.message) ? 'Wrong email or password.' : /banned/i.test(x.message) ? 'This account is blocked.' : x.message;
     } finally { $('lgBtn').disabled = false; }
   };
-  $('logoutBtn').onclick = async () => {
-    try { await fetch(`${BASE}/auth/v1/logout`, { method: 'POST', headers: hdr(await token()) }); } catch (e) { /* ignore */ }
-    session = null; localStorage.removeItem(KEY); showLogin('Signed out.');
-  };
+  let failedTries = 0, lockedUntil = 0;
+  async function signOut(msg) {
+    clearTimeout(idleTimer);
+    try { if (session) await fetch(`${BASE}/auth/v1/logout`, { method: 'POST', headers: hdr(await token()) }); } catch (e) { /* ignore */ }
+    session = null; store.removeItem(KEY); showLogin(msg);
+  }
+  $('logoutBtn').onclick = () => signOut('Signed out.');
+
+  // Auto sign-out after 30 minutes without any activity
+  const IDLE_MS = 30 * 60 * 1000;
+  let idleTimer = 0;
+  function touch() {
+    if (!session) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => signOut('Signed out after 30 minutes of no activity.'), IDLE_MS);
+  }
+  ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(ev => document.addEventListener(ev, touch, { passive: true }));
 
   async function enter() {
     const ok = await rpc('is_admin');
-    if (ok !== true) { session = null; localStorage.removeItem(KEY); return showLogin('This account is not an admin.'); }
+    if (ok !== true) { session = null; store.removeItem(KEY); return showLogin('This account is not an admin.'); }
     $('loginView').hidden = true; $('appView').hidden = false; $('lgErr').textContent = '';
+    failedTries = 0; touch();
     $('meEmail').textContent = session.email || '';
     await loadAll();
   }
@@ -225,7 +264,7 @@
 
   $('csvBtn').onclick = () => {
     const cols = ['email', 'username', 'signup_method', 'plan', 'pro_until', 'status', 'prompts_total', 'batches_total', 'ext_version', 'locale', 'created_at', 'last_seen_at', 'admin_note'];
-    const rows = [cols.join(',')].concat(users.map(u => cols.map(c => `"${String(u[c] == null ? '' : u[c]).replace(/"/g, '""')}"`).join(',')));
+    const rows = [cols.join(',')].concat(users.map(u => cols.map(c => { let v = String(u[c] == null ? '' : u[c]); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return `"${v.replace(/"/g, '""')}"`; }).join(',')));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
     a.download = `dz-auto-flow-users-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
@@ -277,7 +316,7 @@
   async function loadSettings() {
     const rows = await json(await fetch(`${BASE}/rest/v1/app_settings?select=key,value`, { headers: hdr(await token()) }));
     const m = Object.fromEntries(rows.map(r => [r.key, r.value || '']));
-    $('setWa').value = m.support_whatsapp || ''; $('setMsg').value = m.support_message || ''; $('setMail').value = m.support_email || '';
+    $('setWa').value = m.support_whatsapp || ''; $('setMsg').value = m.support_message || ''; $('setMail').value = m.support_email || ''; $('setOtp').value = m.email_codes === 'on' ? 'on' : 'off'; $('setOtp').dataset.was = $('setOtp').value;
     showWaTest();
   }
   $('setWa').addEventListener('input', showWaTest); $('setMsg').addEventListener('input', showWaTest);
@@ -291,6 +330,7 @@
       await rpc('admin_set_setting', { p_key: 'support_whatsapp', p_value: wa });
       await rpc('admin_set_setting', { p_key: 'support_message', p_value: $('setMsg').value.trim() });
       await rpc('admin_set_setting', { p_key: 'support_email', p_value: mail });
+      if ($('setOtp').value !== $('setOtp').dataset.was) { await rpc('admin_set_setting', { p_key: 'email_codes', p_value: $('setOtp').value }); $('setOtp').dataset.was = $('setOtp').value; }
       $('setWa').value = wa; showWaTest(); toast('Saved — users see it next time they open Help');
     } catch (x) { toast(x.message); }
     finally { $('setSave').disabled = false; }
@@ -304,6 +344,6 @@
   }));
   $('refreshBtn').onclick = () => loadAll().then(() => toast('Updated'));
 
-  try { session = JSON.parse(localStorage.getItem(KEY)); } catch (e) { session = null; }
+  try { session = JSON.parse(store.getItem(KEY)); } catch (e) { session = null; }
   if (session) enter().catch(() => showLogin()); else showLogin();
 })();
