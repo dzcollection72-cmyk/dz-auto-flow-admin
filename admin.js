@@ -106,7 +106,7 @@
   async function enter() {
     const ok = await rpc('is_admin');
     if (ok !== true) { session = null; localStorage.removeItem(KEY); return showLogin('This account is not an admin.'); }
-    $('loginView').hidden = true; $('appView').hidden = false;
+    $('loginView').hidden = true; $('appView').hidden = false; $('lgErr').textContent = '';
     $('meEmail').textContent = session.email || '';
     await loadAll();
   }
